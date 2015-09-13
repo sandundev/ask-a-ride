@@ -8,16 +8,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
 /**
- * Author: Daniel
+ * Author: Sandun Lewke Bandara
  */
+@RequestMapping(value="/service/search")
 @Controller
-@RequestMapping("/blog")
-public class BlogController {
+public class DeliveryServiceSearchController {
 
-    @RequestMapping(method = RequestMethod.GET)
+
+	@RequestMapping(method={RequestMethod.GET, RequestMethod.POST})
     public String showPage(HttpServletRequest request , HttpServletResponse response){
     	System.out.println(request.getRequestURI());
-        return request.getRequestURI().split(request.getContextPath())[1];
+        return "search-result";
     }
 
 }
