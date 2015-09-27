@@ -1,3 +1,5 @@
+<%@ taglib prefix="spring" uri="http://www.springframework.org/tags"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
 <%@ taglib uri="http://tiles.apache.org/tags-tiles" prefix="tiles"%>
 <!DOCTYPE html>
 <html lang="en">
@@ -85,7 +87,7 @@
    <div class="row">
         <div class="col-sm-8 col-sm-offset-2">
           <h2>I would like to move my stuffs..</h2>
-          <form id="#search-form" class="form-horizontal" action="/ask-a-ride/service/search" method="post" enctype="multipart/form-data" accept-charset="UTF-8">
+          <form id="#search-form" class="form-horizontal" action="/ask-a-ride/service/search" method="GET" accept-charset="UTF-8">
  		 
             <fieldset>
                <div class="form-group">

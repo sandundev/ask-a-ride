@@ -3,253 +3,107 @@
 <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
 <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
 <title>Google Maps JavaScript API v3 Example: Distance Matrix</title>
+
+    <!-- jQuery -->
+    <script src="resources/js/jquery.js"></script>
 <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
 <script type="text/javascript">
+var map;
+var origin = "12 St James' Rd, Mitcham CR4, United Kingdom"
+var destinations = [
+    "6 Cambrian Green, London NW9, United Kingdom"];
+var directionsDisplay;
+var directionsService = new google.maps.DirectionsService();
 
-  var origins = [
-    "Euston",
-    "Kings Cross",
-    "Liverpool St",
-    "Paddington",
-    "St. Pancras",
-    "Victoria",
-    "Waterloo",
-  ];
+function calculateDistances() {
+    var service = new google.maps.DistanceMatrixService();
+    service.getDistanceMatrix({
+        origins: [origin], //array of origins
+        destinations: destinations, //array of destinations
+        travelMode: google.maps.TravelMode.DRIVING,
+        unitSystem: google.maps.UnitSystem.METRIC,
+        avoidHighways: false,
+        avoidTolls: false
+    }, callback);
+}
 
-  var destinations = [
-    "Buckingham Palace",
-    "Houses of Parliament",
-    "Tower Bridge",
-    "Trafalgar Square",
-    "Westminster Abbey",
-  ];
-
-  var query = {
-    origins: origins,
-    destinations: destinations,
-    travelMode: google.maps.TravelMode.WALKING,
-    unitSystem: google.maps.UnitSystem.IMPERIAL
-  };
-
-  var map, dms;
-  var dirService, dirRenderer;
-  var highlightedCell;
-  var routeQuery;
-  var bounds;
-  var panning = false;
-
-  function initialize() {
-    var mapOptions = {
-      zoom: 12,
-      center: new google.maps.LatLng(51.5, -0.126),
-      mapTypeId: google.maps.MapTypeId.ROADMAP
-    }
-    map = new google.maps.Map(document.getElementById("map"), mapOptions);
-    createTable();
-
-    for (var i = 0; i < origins.length; i++) {
-      origins[i] += ' Station, London, UK';
-    }
-
-    for (var j = 0; j < destinations.length; j++) {
-      destinations[j] += ', London, UK';
-    }
-
-    dms = new google.maps.DistanceMatrixService();
-
-    dirService = new google.maps.DirectionsService();
-    dirRenderer = new google.maps.DirectionsRenderer({preserveViewport:true});
-    dirRenderer.setMap(map);
-
-    google.maps.event.addListener(map, 'idle', function() {
-      if (panning) {
-        map.fitBounds(bounds);
-        panning = false;
-      }
-    });
-    
-    updateMatrix();
-  }
-
-  function updateMatrix() {
-    dms.getDistanceMatrix(query, function(response, status) {
-        if (status == "OK") {
-          populateTable(response.rows);
+function callback(response, status) {
+    if (status != google.maps.DistanceMatrixStatus.OK) {
+        alert('Error was: ' + status);
+    } else {
+        //we only have one origin so there should only be one row
+        var routes = response.rows[0];
+        var sortable = [];
+        for (var i = routes.elements.length - 1; i >= 0; i--) {
+            var rteLength = routes.elements[i].duration.value;
+            sortable.push([destinations[i], rteLength]);
         }
-      }
-    );
-  }
-
-  function createTable() {
-    var table = document.getElementById('matrix');
-    var tr = addRow(table);
-    addElement(tr);
-    for (var j = 0; j < destinations.length; j++) {
-      var td = addElement(tr);
-      td.setAttribute("class", "destination");
-      td.appendChild(document.createTextNode(destinations[j]));
+        
+        //build the waypoints.
+        var waypoints = [];
+        for (j = 0; j < sortable.length - 1; j++) {
+            console.log(sortable[j][0]);
+            waypoints.push({
+                location: sortable[j][0],
+                stopover: true
+            });
+        }
+        //start address == origin
+        var start = origin;
+        //end address is the furthest desitnation from the origin.
+        var end = sortable[sortable.length - 1][0];
+        //calculate the route with the waypoints        
+        calculateRoute(start, end, waypoints);
+ 
     }
+}
 
-    for (var i = 0; i < origins.length; i++) {
-      var tr = addRow(table);
-      var td = addElement(tr);
-      td.setAttribute("class", "origin");
-      td.appendChild(document.createTextNode(origins[i]));
-      for (var j = 0; j < destinations.length; j++) {
-        var td = addElement(tr, 'element-' + i + '-' + j);
-        td.onmouseover = getRouteFunction(i,j);
-        td.onclick = getRouteFunction(i,j);
-      }
-    }
-  }
-
-  function populateTable(rows) {
-    for (var i = 0; i < rows.length; i++) {
-      for (var j = 0; j < rows[i].elements.length; j++) {
-        var distance = rows[i].elements[j].distance.text;
-        var duration = rows[i].elements[j].duration.text;
-        var td = document.getElementById('element-' + i + '-' + j);
-        td.innerHTML = distance + "<br/>" + duration;
-      }
-    }
-  }
-
-  function getRouteFunction(i, j) {
-    return function() {
-      routeQuery = {
-        origin: origins[i],
-        destination: destinations[j],
-        travelMode: query.travelMode,
-        unitSystem: query.unitSystem,
-      };
-      if (highlightedCell) {
-        highlightedCell.style.backgroundColor="#ffffff";
-      }
-      highlightedCell = document.getElementById('element-' + i + '-' + j);
-      highlightedCell.style.backgroundColor="#e0ffff";
-      showRoute();
-    }
-  }
-
-  function showRoute() {
-    dirService.route(routeQuery, function(result, status) {
-      if (status == google.maps.DirectionsStatus.OK) {
-        dirRenderer.setDirections(result);
-        bounds = new google.maps.LatLngBounds();
-        bounds.extend(result.routes[0].overview_path[0]);
-        var k = result.routes[0].overview_path.length;
-        bounds.extend(result.routes[0].overview_path[k-1]);
-        panning = true;
-        map.panTo(bounds.getCenter());        
-      }
+//Calculate the route of the shortest distance we found.
+function calculateRoute(start, end, waypoints) {
+    var request = {
+        origin: start,
+        destination: end,
+        waypoints: waypoints,
+        optimizeWaypoints: true,
+        travelMode: google.maps.TravelMode.DRIVING
+    };
+    directionsService.route(request, function (result, status) {
+        if (status == google.maps.DirectionsStatus.OK) {
+            directionsDisplay.setDirections(result);
+        }
     });
-  }
+}
 
-  function updateMode() {
-    switch (document.getElementById("mode").value) {
-      case "driving":
-        query.travelMode = google.maps.TravelMode.DRIVING;
-        break;
-      case "walking":
-        query.travelMode = google.maps.TravelMode.WALKING;
-        break;
-    }
-    updateMatrix();
-    if (routeQuery) {
-      routeQuery.travelMode = query.travelMode;
-      showRoute();
-    }
-  }
+function initialize() {
+    directionsDisplay = new google.maps.DirectionsRenderer();
+    var centerPosition = new google.maps.LatLng(38.713107, -90.42984);
+    var options = {
+        zoom: 12,
+        center: centerPosition,
+        mapTypeId: google.maps.MapTypeId.ROADMAP
+    };
+    map = new google.maps.Map($('#map')[0], options);
+    geocoder = new google.maps.Geocoder();
+    directionsDisplay.setMap(map);
+    calculateDistances();
+}
 
-  function updateUnits() {
-    switch (document.getElementById("units").value) {
-      case "km":
-        query.unitSystem = google.maps.UnitSystem.METRIC;
-        break;
-      case "mi":
-        query.unitSystem = google.maps.UnitSystem.IMPERIAL;
-        break;
-    }
-    updateMatrix();
-  }
-
-  function addRow(table) {
-    var tr = document.createElement('tr');
-    table.appendChild(tr);
-    return tr;
-  }
-
-  function addElement(tr, id) {
-    var td = document.createElement('td');
-    if (id) {
-      td.setAttribute('id', id);
-    }
-    tr.appendChild(td);
-    return td;
-  }
+google.maps.event.addDomListener(window, 'load', initialize);
 </script>
 <style>
 body {
   font-family: sans-serif;
 }
-
-#container {
-  position: absolute;
-  width:500px;
-  left: 5px;
-  top: 5px;
-}
-  
 #map {
-  position: absolute;
-  width: 497px;
-  height:300px;
-  border: 1px solid grey;
+    width: 450px;
+    height: 400px;
 }
-
-#matrix {
-  position: absolute;
-  top: 310px;
-  font-size: 10px;
-  border-collapse: collapse;
-}
-
-#controls {
-  right: 5px;
-  top: 240px;
-  text-align: right;
-  position: absolute;
-}
-
-.origin,.destination {
-  font-weight: bold;
-  text-align: center;
-  background-color: #e0ffe0;
-}
-
-td {
-  border: 1px solid grey;
-  width: 80px;
-  cursor: default;
-  background-color: #ffffff;
-}
-  
 </style>
 </head>
-<body onload="initialize()">
+<body>
 <div id="container">
-  <div id="map"></div>
-  <div id="controls">
-    <select id="mode" onChange="updateMode()">
-      <option value="driving">Driving</option>
-      <option value="walking" selected="selected">Walking</option>
-    </select><br/>
-    <select id="units" onChange="updateUnits()">
-      <option value="km">Kilometers</option>
-      <option value="mi" selected="selected">Miles</option>
-    </select>
-  </div>
-  <table id="matrix"></table>
+<div id="results"></div>
+<div id="map"></div>
 </div>
 </body>
 </html>

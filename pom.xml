@@ -13,6 +13,7 @@
         <junit.version>4.11</junit.version>
         <tiles.version>3.0.5</tiles.version>
         <slf4j.version>1.7.5</slf4j.version>
+        <jstl.version>1.2</jstl.version>
     </properties>
 
     <dependencies>
@@ -73,7 +74,12 @@
             <artifactId>slf4j-log4j12</artifactId>
             <version>${slf4j.version}</version>
         </dependency>
-
+		
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>jstl</artifactId>
+			<version>${jstl.version}</version>
+		</dependency>
     </dependencies>
 
     <build>
